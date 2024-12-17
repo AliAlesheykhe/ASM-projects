@@ -6,7 +6,7 @@ section .text
 main:
     sub rsp, 8                          ;stack pointer realignment
 
-    mov rdi, scanf_format                     
+    mov rdi, scanf_format1                     
     call scanf                          ;scanf will automatically save the user input in rsi
     mov rbx, rsi                        ;saving the original input for the number 20 - 23 bits as we are going to remove these bits in rsi 
     shr rsi, 14                         ;shifting 14 to the right to remove the first 0 - 14 bits of the number. the bits 14 to 17 will be the first 4 bits of the number after this.
@@ -29,5 +29,5 @@ main:
     ret
     
 section .data
-scanf_format: db "%d", 0
+scanf_format1: db "%d", 0
 printf_format: db "%d", 10, 0
