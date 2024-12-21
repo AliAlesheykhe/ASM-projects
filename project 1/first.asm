@@ -5,6 +5,9 @@ extern strstr
 extern atoi
 extern stdin
 ;Ali Alesheykhe 402105687
+;run this using:
+;nasm -f elf64 -g -F dwarf -o first.o first.asm
+;gcc -no-pie -o first first.o -lc
 section .bss
     input resb 256        ; Allocate 256 bytes for input storage (user's string)
     flag resb 1
