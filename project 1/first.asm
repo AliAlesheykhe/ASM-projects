@@ -1,8 +1,9 @@
 global main
 extern printf
-extern scanf
+extern fgets
 extern strstr
 extern atoi
+extern stdin
 
 section .bss
     input resb 256        ; Allocate 256 bytes for input storage (user's string)
@@ -14,9 +15,10 @@ main:
     sub rsp, 8
 
     mov byte [flag], 0
-    mov rdi, scanf_format
-    mov rsi, input
-    call scanf
+    mov rdi, input
+    mov rsi, 256
+    mov rdx, [stdin]
+    call fgets
     mov rdi, input
     call atoi
     mov r14, rax 
@@ -52,7 +54,42 @@ s_not_found:
     add rsp, 8
     ret
 s_found:
+    mov rsi, r14
+    mov rbx, r14
+    shr rsi, 14
+    shl rsi, 60
+    shr rsi, 60
+    mov r14, rsi
+    shr rsi, 3
+    cmp rsi, 1
+    je less_than_zero_14_17
+    print_first_num:
+        mov rdi, printf_format
+        mov rsi, r14
+        call printf
+    shr rbx, 20
+    shl rbx, 60
+    shr rbx, 60
+    mov r15, rbx
+    shr rbx, 3
+    cmp rbx, 1
+    je less_than_zero_20_23
+    print_second_num:
+        mov rdi, printf_format
+        mov rsi, r15
+        call printf
+    ;print sum:
+    mov rsi, r14
+    add rsi, r15
+    mov rdi, printf_format
+    call printf
     call done
+less_than_zero_14_17:
+    add r14, 0xFFFFFFFFFFFFFFF0
+    jmp print_first_num
+less_than_zero_20_23:
+    add r15, 0xFFFFFFFFFFFFFFF0
+    jmp print_second_num
 done:
     mov rax, 60
     xor rdi, rdi
@@ -60,8 +97,7 @@ done:
 
 check_s:
     sub rsp, 8
-    mov rdi, s_substring
-    call printf
+    mov rdi, input
     mov rsi, s_substring
     call strstr
     test rax, rax
@@ -71,6 +107,6 @@ no_s:
     add rsp, 8
     ret
 section .data
-scanf_format: db "%s", 0                            ; Format string for scanf (to read the entire input)
-printf_format: db "%d", 10, 0                        ;Format string to print the number
+scanf_format: db "%s", 0                                 ;Format string for scanf (to read the entire input)
+printf_format: db "%d", 10, 0                            ;Format string to print the number
 s_substring: db "-s", 0                                  ;The "-s" flag string for comparison
