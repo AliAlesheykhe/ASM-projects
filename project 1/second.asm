@@ -16,8 +16,10 @@ section .bss
     n_num resq 1
     valid resb 1
 section .data
-    printf_format db "%d", 10, 0
+    printf_integer_format db "%d", 10, 0
+    printf_string_format db "%s", 10, 0
     deliminater db " ", 0
+    invalid_input db "invalid input", 10, 0
 section .text
 main:
     sub rsp, 8
@@ -33,6 +35,11 @@ main:
     call strtok
     mov [token], rax
 
+    ; Validate the first token:
+    mov rdi, [token] 
+    call is_integer 
+    
+    ;turn the first token into a number
     mov rdi, [token]
     call atoi
     mov [n_num], rax
@@ -42,15 +49,15 @@ main:
     call strtok
     mov [token], rax
 
+    ;validate the second token
+    mov rdi, [token] 
+    call is_integer 
+   
+    ;turn the second token into a number
     mov rdi, [token]
     call atoi
     mov [r_num], rax
 
-    ; mov rsi, [n_num]
-    ; call print_num
-
-    ; mov rsi, [r_num]
-    ; call print_num
     mov rax, [n_num]
     mov rbx, [r_num]
     call n_choose_r
@@ -60,12 +67,77 @@ main:
 
     add rsp, 8
     ret
+is_integer:
+    ; rdi contains the pointer to the input string
+    xor rcx, rcx
+    mov rax, rdi
+    xor rbx, rbx
+    call get_character
+
+    ; Check for optional leading sign
+    cmp rbx, '-'
+    je check_digits
+    cmp rbx, '+'
+    je check_digits
+
+    ; Check if the first character is a digit
+    call is_digit
+    test cl, cl
+    jz not_integer
+
+    check_digits:
+        ; Advance to the next character
+        inc rax
+
+        validate_loop:
+            call get_character
+            test rbx, rbx
+            jz valid_integer ; End of string, valid integer
+            cmp rbx, 10
+            je valid_integer
+
+            ; Check if the character is a digit
+            call is_digit
+            test cl, cl
+            jz not_integer
+
+            inc rax ; Move to the next character
+            jmp validate_loop
+
+    valid_integer:
+        ret
+
+    not_integer:
+        sub rsp, 8
+        mov rsi, invalid_input
+        mov rdi, printf_string_format
+        call printf
+        jmp done
+
+    is_digit:
+        ; Check if the character in cl is a digit (0-9)
+        cmp rbx, '0'
+        jl not_digit
+        cmp rbx, '9'
+        jg not_digit
+        mov cl, 1
+        ret
+
+    not_digit:
+        mov cl, 0
+        ret
+
+    get_character:
+        mov rbx, [rax]
+        shl rbx, 56
+        shr rbx, 56
+        ret
+
+
 print_num:
     sub rsp, 8
-
-    mov rdi, printf_format
+    mov rdi, printf_integer_format
     call printf
-
     add rsp, 8
     ret
 n_choose_r:
@@ -124,8 +196,11 @@ n_choose_r:
         pop rdi
         pop rbx
         ret
-
-
+done:
+    ;calls the exit syscall
+    mov rax, 60
+    xor rdi, rdi
+    syscall
 
     
 
