@@ -1,1 +1,2 @@
-This repository is for my homework projects for the Computer Structure and Language course in Sharif University of technology. Professor Jahangir. Autumn 2024 - Winter 2025
+This repository is for my homework projects for the Computer Structure and Language course offered by Sharif University of Technology, faculty of Computer Engineering. 
+Professor Jahangir. Autumn 2024 - Winter 2025
