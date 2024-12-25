@@ -8,7 +8,8 @@ section .bss
 
 section .data
     delimiter db " ", 0
-    simple_int_printf db "%d", 10, 0
+    simple_int_printf db "%lld", 10, 0
+    printf_int_space db "%lld ", 0
     error_msg db "Memory allocation failed!", 10, 0
 
 section .text
@@ -20,6 +21,7 @@ extern atoi
 extern stdin
 extern malloc
 extern free
+extern calloc
 
 main:
     sub rsp, 8
@@ -34,26 +36,28 @@ main:
 
     call reserve_memory_for_matrices
 
-    ; Read the first matrix
-    mov r13, [matrix1]
-    mov r14, [dimensions]
-    mov r12, [dimensions + 8]
+    ;Read the first matrix
+    mov r13, [matrix1]                  ;passing the matrix address
+    mov r14, [dimensions]               ;passing the number of rows of the matrix
+    mov r12, [dimensions + 8]           ;passing the number of columns of the matrix
     call read_matrix
 
     ; Read the second matrix
-    mov r13, [matrix2]
-    mov r14, [dimensions + 8]
-    mov r12, [dimensions + 16]
+    mov r13, [matrix2]                  ;passing the address
+    mov r14, [dimensions + 8]           ;passing the number of rows
+    mov r12, [dimensions + 16]          ;passing the number of columns
     call read_matrix
 
-    ; Print matrix1
-    mov r12, [dimensions]
-    mov r14, [matrix1]
+    ;Print matrix1
+    mov r12, [dimensions]               ;calculating the amount of numbers to print by multiplying the number of rows by columns
+    imul r12, [dimensions + 8]
+    mov r14, [matrix1]                  ;passing the address
     call print_matrix
 
     ; Print matrix2
-    mov r12, [dimensions + 8]
-    mov r14, [matrix2]
+    mov r12, [dimensions + 8]           ;calculating the amount of numbers to print by multiplying the number of rows by columns
+    imul r12, [dimensions + 16]
+    mov r14, [matrix2]                  ;passing the address
     call print_matrix
 
     jmp done
@@ -86,33 +90,35 @@ tokenize:
 reserve_memory_for_matrices:
     sub rsp, 8
     ; Reserving memory for the first matrix
-    mov rax, [dimensions]
-    imul rax, [dimensions + 8]
-    imul rax, 8
-    call malloc
+    mov rdi, [dimensions]          ; rows of matrix1
+    imul rdi, [dimensions + 8]     ; multiply by columns of matrix1
+    mov rsi, 8                     ; size of each element (64-bit)
+    call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix1], rax
 
     ; Reserving memory for the second matrix
-    mov rax, [dimensions + 8]
-    imul rax, [dimensions + 16]
-    imul rax, 8
-    call malloc
+    mov rdi, [dimensions + 8]      ; rows of matrix2
+    imul rdi, [dimensions + 16]    ; multiply by columns of matrix2
+    mov rsi, 8                     ; size of each element (64-bit)
+    call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix2], rax
 
-    ; Reserving memory for the third matrix (the result of the multiplication)
-    mov rax, [dimensions]
-    imul rax, [dimensions + 16]
-    imul rax, 8
-    call malloc
+    ; Reserving memory for the third matrix (result of the multiplication)
+    mov rdi, [dimensions]          ; rows of matrix3
+    imul rdi, [dimensions + 16]    ; multiply by columns of matrix3
+    mov rsi, 8                     ; size of each element (64-bit)
+    call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix3], rax
 
-    jmp end_method
+    add rsp, 8
+    ret
+
 
 read_input:
     sub rsp, 8
@@ -127,24 +133,22 @@ read_input:
 read_matrix:
     sub rsp, 8
 
-    imul r12, 8
+    imul r12, 8                     ;size of each row
     mov r15, 0
     read_matrix_loop:
-        cmp r15, r14
+        cmp r15, r14                ;comparing r15 with the number of rows
         je end_method
 
         call read_input
 
         ; Tokenize and store the numbers given in the matrix
-        mov rax, r15
-        imul rax, r12
         push r12
         mov r12, input
-        add r13, rax
         push r15
         call tokenize
         pop r15
         pop r12
+        add r13, r12
 
         inc r15
         jmp read_matrix_loop
@@ -152,17 +156,14 @@ read_matrix:
 
 print_matrix:
     sub rsp, 8
-    imul r12, [dimensions + 8]
     mov r13, 0
     print_matrix_loop:
         cmp r13, r12
         je end_method
         mov rdi, simple_int_printf
-        mov rax, r13
-        imul rax, 8
-        add rax, r14
-        mov rsi, [rax]
+        mov rsi, [r14]
         call printf
+        add r14, 8
         inc r13
         jmp print_matrix_loop
     jmp end_method
@@ -175,14 +176,7 @@ memory_allocation_failed:
     mov rdi, error_msg
     call printf
     jmp done
-
 done:
-    mov rdi, [matrix1]
-    call free
-    mov rdi, [matrix2]
-    call free
-    mov rdi, [matrix3]
-    call free
     mov rax, 60
     xor rdi, rdi
     syscall
