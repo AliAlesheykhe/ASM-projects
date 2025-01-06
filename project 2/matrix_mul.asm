@@ -7,10 +7,11 @@ section .bss
     matrix3 resq 1
 
 section .data
-    printf_int_space db "%lld ", 0
-    delimiter db " ", 0
+    newLine db 0xA
+    space db " ", 0
     simple_int_printf db "%lld", 10, 0
     error_msg db "Memory allocation failed!", 10, 0
+    buffer db 32 dup(0) ; Buffer to hold the formatted string
 
 section .text
 global main
@@ -22,9 +23,22 @@ extern stdin
 extern malloc
 extern free
 extern calloc
+extern sprintf
+extern fputs
+extern stdout
+
+
+%macro print 2 
+    mov rax, 1 ; syscall number for write 
+    mov rdi, 1 ; file descriptor (stdout) 
+    mov rsi, %1 ; pointer to the message 
+    mov rdx, %2 ; length of the message 
+    syscall 
+%endmacro
 
 main:
     sub rsp, 8
+
     ; Getting the initial dimensions for the matrices
     mov rdi, simple_int_printf
     call read_input
@@ -54,16 +68,17 @@ main:
     call multiply_matrices
 
      ; Print matrix3
-    mov r12, [dimensions]               ;calculating the amount of numbers to print by multiplying the number of rows by columns
-    imul r12, [dimensions + 16]
+    mov r12, [dimensions]               ;number of rows
+    mov r13, [dimensions + 16]          ;number of elements in each row (columns)
     mov r14, [matrix3]                  ;passing the address
     call print_matrix
 
     jmp done
 tokenize:
+    ;inputs: string to tokenize and address to save in r12 and r13 respectively
     sub rsp, 8
     mov rdi, r12
-    mov rsi, delimiter
+    mov rsi, space
     mov r15, 0
 
     call strtok
@@ -78,7 +93,7 @@ tokenize:
         mov [r13 + r15], rax
 
         mov rdi, 0
-        mov rsi, delimiter
+        mov rsi, space
         call strtok
         mov [token], rax
 
@@ -130,6 +145,7 @@ read_input:
     jmp end_method
 
 read_matrix:
+    ;inputs address of the matrix, number of rows, number of columns in r13, r14 and r12 respectively
     sub rsp, 8
 
     imul r12, 8                     ;size of each row
@@ -154,17 +170,34 @@ read_matrix:
     je end_method
 
 print_matrix:
+    ;inputs: number of rows (r12), number of columns(r13), address of the matrix (r14)
     sub rsp, 8
-    mov r15, 0
+    
+    imul r12, r13                           ;total size of the matrix
+    xor r15, r15                            ;setting r15 to 0 to use as an iteration in the loop
     print_matrix_loop:
-        cmp r15, r12
-        je end_method
-        mov rdi, simple_int_printf
-        mov rsi, [r14]
+        cmp r15, r12                        
+        je end_method                       ;exits if all numbers have been printed
+
+        ; Format the number as a string 
+        mov rdi, simple_int_printf 
+        mov rsi, [r14] 
         call printf
-        add r14, 8
-        inc r15
+        ;print space, 1
+
+        add r14, 8                          ;go to the next number in the matrix
+        inc r15                             ;increment to keep track of the numbers printed
+        ;check if next line should be printed
+        mov rax, r15                            
+        xor rdx, rdx
+        div r13                             ;dividing r15 (index in matrix to be printed) by the number of elements in each row of the matrix (r13)
+        test rdx, rdx                       ;checking the remainder of the previous division
+        jz print_newLine                    ;print newLine if the remainder was zero (if the next number is in the next row of the matrix)
         jmp print_matrix_loop
+        print_newLine:
+            print newLine, 1
+        jmp print_matrix_loop
+
     jmp end_method
     
 end_method:
@@ -177,6 +210,7 @@ memory_allocation_failed:
     jmp done
 
 multiply_matrices:
+    ;inputs: addresses of the first, second and destination matrices in rdi, rsi and rcx respectively
     sub rsp, 8               
     mov r10, [dimensions]                   ;rows of matrix1 and matrix3
     mov r11, [dimensions + 8]               ;columns of matrix1 and rows of matrix2
@@ -203,6 +237,7 @@ multiply_matrices:
     jmp end_method
 
 dot_product:
+    ;inputs: row of the first matrix (r8), column of the second matrix (r9)
     sub rsp, 8
 
     mov rax, rdi                        ;load matrix1 ddress into rax
