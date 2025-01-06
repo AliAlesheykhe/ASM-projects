@@ -50,6 +50,7 @@ main:
 
     mov rdi, [matrix1]
     mov rsi, [matrix2]
+    mov rcx, [matrix3]
     call multiply_matrices
 
      ; Print matrix3
@@ -176,8 +177,7 @@ memory_allocation_failed:
     jmp done
 
 multiply_matrices:
-    sub rsp, 8   
-    mov rcx, [matrix3]               
+    sub rsp, 8               
     mov r10, [dimensions]                   ;rows of matrix1 and matrix3
     mov r11, [dimensions + 8]               ;columns of matrix1 and rows of matrix2
     mov r12, [dimensions + 16]              ;columns of matrix2 and matrix3
