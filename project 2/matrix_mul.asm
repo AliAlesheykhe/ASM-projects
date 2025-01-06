@@ -7,9 +7,9 @@ section .bss
     matrix3 resq 1
 
 section .data
+    printf_int_space db "%lld ", 0
     delimiter db " ", 0
     simple_int_printf db "%lld", 10, 0
-    printf_int_space db "%lld ", 0
     error_msg db "Memory allocation failed!", 10, 0
 
 section .text
@@ -48,16 +48,14 @@ main:
     mov r12, [dimensions + 16]          ;passing the number of columns
     call read_matrix
 
-    ;Print matrix1
-    mov r12, [dimensions]               ;calculating the amount of numbers to print by multiplying the number of rows by columns
-    imul r12, [dimensions + 8]
-    mov r14, [matrix1]                  ;passing the address
-    call print_matrix
+    mov rdi, [matrix1]
+    mov rsi, [matrix2]
+    call multiply_matrices
 
-    ; Print matrix2
-    mov r12, [dimensions + 8]           ;calculating the amount of numbers to print by multiplying the number of rows by columns
+     ; Print matrix3
+    mov r12, [dimensions]               ;calculating the amount of numbers to print by multiplying the number of rows by columns
     imul r12, [dimensions + 16]
-    mov r14, [matrix2]                  ;passing the address
+    mov r14, [matrix3]                  ;passing the address
     call print_matrix
 
     jmp done
@@ -156,15 +154,15 @@ read_matrix:
 
 print_matrix:
     sub rsp, 8
-    mov r13, 0
+    mov r15, 0
     print_matrix_loop:
-        cmp r13, r12
+        cmp r15, r12
         je end_method
         mov rdi, simple_int_printf
         mov rsi, [r14]
         call printf
         add r14, 8
-        inc r13
+        inc r15
         jmp print_matrix_loop
     jmp end_method
     
@@ -176,8 +174,63 @@ memory_allocation_failed:
     mov rdi, error_msg
     call printf
     jmp done
+
+multiply_matrices:
+    sub rsp, 8   
+    mov rcx, [matrix3]               
+    mov r10, [dimensions]                   ;rows of matrix1 and matrix3
+    mov r11, [dimensions + 8]               ;columns of matrix1 and rows of matrix2
+    mov r12, [dimensions + 16]              ;columns of matrix2 and matrix3
+    mov r8, r10                             ;load rows of matrix3 to r8                   
+    imul r8, r12                            ;multiply rows of matrix3 by its columns to get the total size of matrix3
+    mov r9, 0
+    multiply_loop:
+        mov rax, r9
+        xor rdx, rdx
+        div r11
+        push r8
+        push r9
+        mov r8, rax                         ;put the current of matrix1 to be multiplied in r8 (input for dot_product)
+        mov r9, rdx                         ;put the current column of matrix2 to be multiplied in r9 (as input for dot_product)
+        call dot_product
+        mov [rcx], r15                      ;store the result of the dot product to matrix3
+        add rcx, 8
+        pop r9
+        pop r8
+        inc r9
+        cmp r9, r8
+        jl multiply_loop
+    jmp end_method
+
+dot_product:
+    sub rsp, 8
+
+    mov rax, rdi                        ;load matrix1 ddress into rax
+    mov rbx, rsi                        ;load matrix2 address into rbx
+    mov r13, r8                         ;load current row to r13
+    imul r13, r11                       ;multiply r13 by the number of columns in the first matrix
+    imul r13, 8                         ;save the size of the row in bytes (each number is 8 bytes)
+    add rax, r13                        ;load the current matrix1 row address into rax
+
+    add rbx, r9                         ;address of the first element of the r9th column in matrix2
+    mov r14, r12                        ;load the length of rows in the second matrix
+    imul r14, 8                         ;get the size of the rows of matrix2
+
+    mov r15, 0                          ;setting the initial value of r15 to 0 in order to use it to calculate the result    
+    mov r13, 0                          ;use to check if loop is finished (it will be compared with r11, number of rows in matrix2)
+    calculate_number_loop:
+        mov r8, [rax]                   ;load the current number of matrix1's current column into r14
+        imul r8, [rbx]                  ;multiply by the corresponding number in matrix2
+        add r15, r8                     ;add to the accumilator
+        add rbx, r14                    ;go to the next number of matrix2 in the same column but different row
+        add rax, 8                      ;go to the next number in the current row
+        inc r13
+        cmp r13, r11
+        jl calculate_number_loop
+    jmp end_method
 done:
     mov rax, 60
     xor rdi, rdi
     syscall
+
 
