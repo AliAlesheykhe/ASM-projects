@@ -187,7 +187,7 @@ multiply_matrices:
     multiply_loop:
         mov rax, r9
         xor rdx, rdx
-        div r11
+        div r12                             ;divide rax r9 by the number of elements in each row of rax
         push r8
         push r9
         mov r8, rax                         ;put the current of matrix1 to be multiplied in r8 (input for dot_product)
@@ -212,6 +212,7 @@ dot_product:
     imul r13, 8                         ;save the size of the row in bytes (each number is 8 bytes)
     add rax, r13                        ;load the current matrix1 row address into rax
 
+    imul r9, 8
     add rbx, r9                         ;address of the first element of the r9th column in matrix2
     mov r14, r12                        ;load the length of rows in the second matrix
     imul r14, 8                         ;get the size of the rows of matrix2
