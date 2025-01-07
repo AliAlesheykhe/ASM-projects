@@ -1,10 +1,11 @@
 section .bss
     input resb 256
-    dimensions resq 3
+    dimensions resq 2
     token resq 1
     matrix1 resq 1
     matrix2 resq 1
     matrix3 resq 1
+    transpose_matrix resq 1
 
 section .data
     newLine db 0xA
@@ -58,22 +59,29 @@ main:
 
     ; Read the second matrix
     mov r13, [matrix2]                  ;passing the address
-    mov r14, [dimensions + 8]           ;passing the number of rows
-    mov r12, [dimensions + 16]          ;passing the number of columns
+    mov r14, [dimensions]               ;passing the number of rows
+    mov r12, [dimensions + 8]           ;passing the number of columns
     call read_matrix
 
     mov rdi, [matrix1]
+    mov rsi, [transpose_matrix]
+    mov rdx, [dimensions]
+    mov rcx, [dimensions + 8]
+    call transpose
+
+    ;multiply the transpose matrix by matrix2, save the result to matrix3
+    mov rdi, [transpose_matrix]
     mov rsi, [matrix2]
     mov rcx, [matrix3]
-    mov r10, [dimensions]                   ;rows of matrix1 and matrix3
-    mov r11, [dimensions + 8]               ;columns of matrix1 and rows of matrix2
-    mov r12, [dimensions + 16]              ;columns of matrix2 and matrix3
+    mov r10, [dimensions + 8]               ;rows of transpose and matrix3
+    mov r11, [dimensions]                   ;columns of transpose and rows of matrix2
+    mov r12, [dimensions + 8]               ;columns of matrix2 and matrix3
     call multiply_matrices
 
      ; Print matrix3
-    mov r12, [dimensions]               ;number of rows
-    mov r13, [dimensions + 16]          ;number of elements in each row (columns)
-    mov r14, [matrix3]                  ;passing the address
+    mov r12, [dimensions + 8]            ;number of rows
+    mov r13, r12                         ;number of elements in each row (columns)
+    mov r14, [matrix3]                   ;passing the address
     call print_matrix
 
     jmp done
@@ -109,29 +117,38 @@ reserve_memory_for_matrices:
     ; Reserving memory for the first matrix
     mov rdi, [dimensions]          ; rows of matrix1
     imul rdi, [dimensions + 8]     ; multiply by columns of matrix1
-    mov rsi, 8                     ; size of each element (64-bit)
+    mov rsi, 8                     ; size of each element (64-bits or 8 bytes)
     call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix1], rax
 
     ; Reserving memory for the second matrix
-    mov rdi, [dimensions + 8]      ; rows of matrix2
-    imul rdi, [dimensions + 16]    ; multiply by columns of matrix2
-    mov rsi, 8                     ; size of each element (64-bit)
+    mov rdi, [dimensions]           ; rows of matrix2
+    imul rdi, [dimensions + 8]      ; multiply by columns of matrix2
+    mov rsi, 8                      ; size of each element (64-bits or 8 bytes)
     call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix2], rax
 
     ; Reserving memory for the third matrix (result of the multiplication)
-    mov rdi, [dimensions]          ; rows of matrix3
-    imul rdi, [dimensions + 16]    ; multiply by columns of matrix3
-    mov rsi, 8                     ; size of each element (64-bit)
+    mov rdi, [dimensions + 8]           ; rows of matrix3
+    imul rdi, [dimensions + 8]          ; multiply by columns of matrix3
+    mov rsi, 8                          ; size of each element (64-bits or 8 bytes)
     call calloc
     test rax, rax
     jz memory_allocation_failed
     mov [matrix3], rax
+
+    ;reserving memory for the transpose matrix
+    mov rdi, [dimensions + 8]           ; rows of the transpose
+    imul rdi, [dimensions]              ; multiply by columns of transpose
+    mov rsi, 8                          ; size of each element (64-bits or 8 bytes)
+    call calloc
+    test rax, rax
+    jz memory_allocation_failed
+    mov [transpose_matrix], rax
 
     add rsp, 8
     ret
@@ -214,7 +231,7 @@ memory_allocation_failed:
 
 multiply_matrices:
     ;inputs: addresses of the first, second and destination matrices in rdi, rsi and rcx respectively
-    ;and rows of the first matrix(r10), columns of the first matrix(r11) and and columns of the second matrix(r12) 
+    ;and rows of the first matrix(r10), columns of the first matrix(r11) and and columns of the second matrix(r12)
     sub rsp, 8               
     mov r8, r10                             ;load rows of matrix3 to r8                   
     imul r8, r12                            ;multiply rows of matrix3 by its columns to get the total size of matrix3
@@ -265,6 +282,32 @@ dot_product:
         cmp r13, r11
         jl calculate_number_loop
     jmp end_method
+transpose:
+    ;inputs: address of matrix1 (rdi), address of where to store the transpose(rsi), row of the matrix to be transposed (rdx), and its columns (rcx)
+    sub rsp, 8
+
+    mov r8, rdx
+    imul r8, rcx                        ;saving the size of the resulting transpose matrix into r8
+    xor r9, r9                          ;setting r9 to 0 to use as loop iterator
+
+    mov r10, rcx
+    imul r10, 8                         ;saving the size of each row of matrix1 into r10
+
+    transpose_loop:
+        mov rax, [rdi]
+        mov [rsi], rax                  ;saving the value in the current number in matrix1 to the transpose
+        inc r9                          ;incrementing r9 to keep track of the numbers saved to transpose
+        add rsi, 8                      ;moving on to the location of the next number to be saved in transpose
+        mov rax, [rdi + r10]
+        mov [rsi], rax         
+        inc r9
+        add rsi, 8
+        add rdi, 8                      ;moving on to the first number of the next column in matrix1
+
+        cmp r9, r8                      ;comparing iterator to the total number of elements that need to be placed in transpose
+        jl transpose_loop               ;going back to the loop if the number of elements that have already been placed is less than those that need to be placed.
+    jmp end_method
+
 done:
     mov rax, 60
     xor rdi, rdi
