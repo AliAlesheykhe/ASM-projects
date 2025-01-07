@@ -62,12 +62,12 @@ main:
     mov r12, [dimensions + 16]          ;passing the number of columns
     call read_matrix
 
-    mov rdi, [matrix1]
-    mov rsi, [matrix2]
-    mov rcx, [matrix3]
-    mov r10, [dimensions]                   ;rows of matrix1 and matrix3
-    mov r11, [dimensions + 8]               ;columns of matrix1 and rows of matrix2
-    mov r12, [dimensions + 16]              ;columns of matrix2 and matrix3
+    mov rdi, [matrix1]                      ;left matrix
+    mov rsi, [matrix2]                      ;right matrix
+    mov rcx, [matrix3]                      ;result matrix
+    mov r10, [dimensions]                   ;rows of left matrix and result
+    mov r11, [dimensions + 8]               ;columns of left matrix and rows of right matrix
+    mov r12, [dimensions + 16]              ;columns of right matrix and result
     call multiply_matrices
 
      ; Print matrix3

@@ -63,26 +63,31 @@ main:
     mov r12, [dimensions + 8]           ;passing the number of columns
     call read_matrix
 
-    mov rdi, [matrix1]
-    mov rsi, [transpose_matrix]
-    mov rdx, [dimensions]
-    mov rcx, [dimensions + 8]
+    mov rdi, [matrix1]                      ;the matrix to be transposed
+    mov rsi, [transpose_matrix]             ;where to save the transposed matrix
+    mov rdx, [dimensions]                   ;rows of the matrix to be transposed
+    mov rcx, [dimensions + 8]               ;columns of the matrix to be transposed
     call transpose
 
     ;multiply the transpose matrix by matrix2, save the result to matrix3
-    mov rdi, [transpose_matrix]
-    mov rsi, [matrix2]
-    mov rcx, [matrix3]
-    mov r10, [dimensions + 8]               ;rows of transpose and matrix3
-    mov r11, [dimensions]                   ;columns of transpose and rows of matrix2
-    mov r12, [dimensions + 8]               ;columns of matrix2 and matrix3
+    mov rdi, [transpose_matrix]             ;the left matrix
+    mov rsi, [matrix2]                      ;the right matrix
+    mov rcx, [matrix3]                      ;the result matrix
+    mov r10, [dimensions + 8]               ;rows of left matrix and result
+    mov r11, [dimensions]                   ;columns of left matrix and rows of right matrix
+    mov r12, r10                            ;columns of right matrix and result
     call multiply_matrices
 
-     ; Print matrix3
-    mov r12, [dimensions + 8]            ;number of rows
-    mov r13, r12                         ;number of elements in each row (columns)
-    mov r14, [matrix3]                   ;passing the address
-    call print_matrix
+    ;calculate the trace of matrix3 for the final result
+    mov rdi, [matrix3]
+    mov rsi, [dimensions + 8]
+    mov rdx, rsi
+    call calculate_trace                    ;result will be saved to rax
+
+    ;print the final result
+    mov rdi, simple_int_printf
+    mov rsi, rax
+    call printf
 
     jmp done
 tokenize:
@@ -306,6 +311,27 @@ transpose:
 
         cmp r9, r8                      ;comparing iterator to the total number of elements that need to be placed in transpose
         jl transpose_loop               ;going back to the loop if the number of elements that have already been placed is less than those that need to be placed.
+    jmp end_method
+calculate_trace:
+    ;inputs: address of matrix to calculate the trace of (rdi), rows (rsi), columns (rdx)
+    ;saves the result to rax
+    sub rsp, 8
+
+    xor rbx, rbx                        ;setting rbx to 0 to use as loop iterator (the current row)
+    xor rax, rax                        ;setting rax to 0 to save the result
+
+    mov r8, rdx
+    imul r8, 8                          ;saving the size of each row into r8
+
+    calculate_trace_loop:
+        mov r9, rbx
+        imul r9, 8                      ;this is the index to be added to the current row address in order to get access to the number in the current row that is on the main diagonal
+        add rax, [rdi + r9]             ;adding the number on the diagonal to the result
+        add rdi, r8                     ;moving on to the next row of the matrix
+        inc rbx                         ;incrementing rbx to get the index of the next diagonal number (which is on the next row), rbx = number of the next row
+
+        cmp rbx, rsi
+        jl calculate_trace_loop         ;continueing the loop if the number of rows considered is less than the total number of rows
     jmp end_method
 
 done:
